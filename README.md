@@ -8,6 +8,7 @@ I recommend creating a new conda environment:
 conda create -n amyloidPredict python=3.9
 conda activate amyloidPredict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
+conda install pytorch # I needed to do this on my Mac
 ```
 After pip install, download the weights of the 3B parameter ESM2 model locally by executing this in python:
 ```python
