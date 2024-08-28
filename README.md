@@ -8,9 +8,9 @@ I recommend creating a new conda environment:
 conda create -n amyloidPredict python=3.9
 conda activate amyloidPredict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
-conda install pytorch # I needed to do this on my Mac
+conda install pytorch pandas scikit-learn matplotlib tqdm # you may not need to install pytorch? I had to on my Mac
 ```
-After pip install, download the weights of the 3B parameter ESM2 model locally by executing this in python:
+After pip install, download the weights of the 3B parameter ESM2 model locally (~5.3GB) by executing this in python:
 ```python
 import esm
 model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
@@ -23,19 +23,27 @@ You can score multiple protein/peptide sequences in a fasta file (e.g. many_sequ
 `python predict.py many_sequences.fasta`  
 
 **How it works**  
-I made a classification model to predict amyloid formation based on some public amyloid datasets. Each peptide sequence was featurized with ESM embeddings - 2560 embeddings from the 36-layered, 3B parameter model. (The 15B parameter model seemed to be worse at extrapolating to other datasets.) Then a logistic regression model was trained with a L1 penalty which selected a subset of the embeddings. I ensembled two logistic regression models to create a final model: the two models were trained on two datasets that were deemed high quality, i.e. if learning transferred well to other datasets. The final amyloidogenicity score is the probabilites (between 0-1) that a fragment will be labelled an amyloid.  
+I made a classification model to predict amyloid formation based on some public amyloid datasets.  
+Each peptide sequence was featurized with ESM embeddings - 2560 embeddings from the 36-layered, 3B parameter model. (The 15B parameter model seemed to be worse at extrapolating to other datasets.)  
+Then a logistic regression model was trained with a L1 penalty which selected a subset of the embeddings.  
+I ensembled two logistic regression models to create a final model: the two models were trained on two datasets that were deemed high quality, i.e. if learning transferred well to other datasets.  
+The final amyloidogenicity score is the probabilites (between 0-1) that a fragment will be labelled an amyloid.  
 
 The model was trained primarily on peptides between 6 to 15 amino acids long, and it's meant to estimate the propensity for multiple peptides/proteins to form β-sheets when stacked parallely and in-register. 
 
-If you input a peptide/protein longer than 15aa, `predict.py` will break it into multiple fragments, score each fragment, and aggregate the scores. By default it will use a sliding window of 3aa to get overlapping 15aa fragments. For example, a 21aa peptide will be broken down to 3 fragments: 1-15, 4-18, 7-21. It will output a score for each residue, and by default a residue will be assigned the highest score for all the fragments it is in.  
+If you input a peptide/protein longer than 15aa, `predict.py` will break it into multiple fragments, score each fragment, and aggregate the scores.  
+By default it will use a sliding window of 3aa to get overlapping 15aa fragments.  
+For example, a 21aa peptide will be broken down to 3 fragments: 1-15, 4-18, 7-21.  
+It will output a score for each residue, and by default a residue will be assigned the highest score for all the fragments it is in.  
 There are options to change the fragment length, the sliding window length, and whether the highest score or the average score per residue is outputted when a residue is in multiple fragments - see **Arguments** below.
 
-Please note that the model has limitations in estimating amyloidogenicity for peptides outside this 6-15 amino acid range, but that it likely provides useful information on a protein's tendency to form parallel, in-register β-sheets. I expect this model to be informative for annotating proteins that can form pathological amyloids, functional amyloids, and phase-separating proteins (e.g. participating in LLPS).
+Please note that the model has limitations in estimating amyloidogenicity for peptides outside this 6-15 amino acid range, but that it likely provides useful information on a protein's tendency to form parallel, in-register β-sheets.  
+I expect this model to be informative for annotating proteins that can form pathological amyloids, functional amyloids, and phase-separating proteins (e.g. participating in LLPS).
 
 **Arguments**  
 _Required_:  
 a peptide sequence (e.g. "VQIVYK")  
-or a fasta file with multiple sequences (e.g. many_sequences.fasta)
+or a fasta file with multiple sequences (e.g. example.fasta)
 
 _Optional_:  
 `--name` (`-n`): name for output directory (str)
