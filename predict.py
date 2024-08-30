@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragments in a protein sequence.')
 parser.add_argument('sequence', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s).')
 parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage.')
+parser.add_argument('--output','-o', help='Output file name for predictions. Default is amyloidogenicity.csv', default='amyloidogenicity.csv')
 args = parser.parse_args()
 
 # debugging
@@ -107,11 +108,14 @@ for name, predE, pred6, pred10, pred15 in zip(names, ensemble_score, score_15aa,
 
 # output csv with all 4 predictions
 output_df = pd.DataFrame({'name': names, 'ensemble_score': ensemble_score, '15aa_model_score': score_15aa, '10aa_model_score': score_10aa, '6aa_model_score': score_6aa})
-output_df.to_csv('amyloidogenicity.csv', index=False)
+output_df.to_csv(args.output, index=False)
 
 # plot bar graph of predictions
 plt.figure()
 # bar width should be small
 plt.bar(names, ensemble_score, width=0.4, label='Ensemble model')
 plt.ylabel('Amyloidogenicity')
-# plt.show()
+# rotate the x-ticks 90 degrees
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
