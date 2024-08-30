@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragments in a protein sequence.')
 parser.add_argument('sequence', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s).')
 parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage.')
-args = parser.parse_args()
+# args = parser.parse_args()
 
-# # debugging
-# args = parser.parse_args(['VQIVYK'])
+# debugging
+args = parser.parse_args(['VQIVYK'])
 # args = parser.parse_args(["example.fasta"])
 
 ### load classification models
@@ -49,14 +49,16 @@ model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
 batch_converter = alphabet.get_batch_converter()
 model.eval()  # disables dropout for deterministic results
 
-if torch.cuda.is_available() and not args.nogpu:
-    model = model.cuda()
-    print("Transferred model to GPU")
-
 # turn names and sequences into data
 data = [(name, sequence) for name, sequence in zip(names, sequences)]
 
 batch_labels, batch_strs, batch_tokens = batch_converter(data)
+
+if torch.cuda.is_available() and not args.nogpu:
+    model = model.cuda()
+    print("Transferred model to GPU")
+    batch_tokens = batch_tokens.cuda()  # Transfer the input tensor to GPU
+
 batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
 tok = time()
 print(f'Time to load model and preprocess data: {tok-tik:.2f} s')
