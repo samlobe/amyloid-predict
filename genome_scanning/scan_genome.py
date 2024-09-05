@@ -28,8 +28,8 @@ bins = np.linspace(0, 1, 101)
 output_dir = 'human_genome_res_max_scores'
 os.makedirs(output_dir, exist_ok=True)
 for protein in tqdm(protein_names):
-    # print(f'Scanning {protein}')
-    _,_,_,scores_df = scan_protein(protein, model_6aa, model_10aa, model_15aa, selected_features, embeddings_dir=embeddings_dir)
+    print(f'Scanning {protein}')
+    scores_df = scan_protein(protein, model_6aa, model_10aa, model_15aa, selected_features, embeddings_dir=embeddings_dir)
     # save a csv filr of the scores df
     scores_df.to_csv(f'{output_dir}/{protein}.csv')
     # get max score for each index

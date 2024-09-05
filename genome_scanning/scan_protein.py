@@ -126,25 +126,44 @@ def scan_protein(protein_name, model_6aa, model_10aa, model_15aa, selected_featu
     # Load the embeddings
     selected_embeddings_df = load_embeddings(protein_name, embeddings_dir=embeddings_dir, selected_features=selected_features)
     
+    # Get the number of residues in the protein
+    num_residues = len(selected_embeddings_df)
+    
+    # Initialize empty scores DataFrame
+    scores_df = pd.DataFrame(index=np.arange(1, num_residues + 1))
+    
     # Generate 6aa fragments, average their embeddings, score the fragments, and get per-residue scores
-    avg_6aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=6)
-    frag_scores_6aa = predict_scores(model_6aa, avg_6aa_fragments_df)
-    scores_6aa = compute_per_residue_scores(frag_scores_6aa)
+    if num_residues >= 6:
+        avg_6aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=6)
+        frag_scores_6aa = predict_scores(model_6aa, avg_6aa_fragments_df)
+        scores_6aa = compute_per_residue_scores(frag_scores_6aa)
+        scores_df['6aa'] = scores_6aa
+    else:
+        print(f"Protein {protein_name} is too short for 6aa model")
+        scores_df['6aa'] = np.nan  # Mark as NaN if too short
     
     # Generate 10aa fragments, average their embeddings, score the fragments, and get per-residue scores
-    avg_10aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=10)
-    frag_scores_10aa = predict_scores(model_10aa, avg_10aa_fragments_df)
-    scores_10aa = compute_per_residue_scores(frag_scores_10aa)
+    if num_residues >= 10:
+        avg_10aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=10)
+        frag_scores_10aa = predict_scores(model_10aa, avg_10aa_fragments_df)
+        scores_10aa = compute_per_residue_scores(frag_scores_10aa)
+        scores_df['10aa'] = scores_10aa
+    else:
+        print(f"Protein {protein_name} is too short for 10aa model")
+        scores_df['10aa'] = np.nan  # Mark as NaN if too short
     
     # Generate 15aa fragments, average their embeddings, score the fragments, and get per-residue scores
-    avg_15aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=15)
-    frag_scores_15aa = predict_scores(model_15aa, avg_15aa_fragments_df)
-    scores_15aa = compute_per_residue_scores(frag_scores_15aa)
+    if num_residues >= 15:
+        avg_15aa_fragments_df = generate_fragments_and_avg_embeddings(selected_embeddings_df, fragment_length=15)
+        frag_scores_15aa = predict_scores(model_15aa, avg_15aa_fragments_df)
+        scores_15aa = compute_per_residue_scores(frag_scores_15aa)
+        scores_df['15aa'] = scores_15aa
+    else:
+        print(f"Protein {protein_name} is too short for 15aa model")
+        scores_df['15aa'] = np.nan  # Mark as NaN if too short
 
-    # compile the scores into a single dataframe
-    scores_df = pd.DataFrame({'6aa': scores_6aa, '10aa': scores_10aa, '15aa': scores_15aa})
-    
-    return scores_6aa, scores_10aa, scores_15aa, scores_df
+    return scores_df
+
 
 #%%
 if __name__ == '__main__':
@@ -155,12 +174,14 @@ if __name__ == '__main__':
     protein_name = 'sp|P37840|SYUA_HUMAN Alpha-synuclein OS=Homo sapiens OX=9606 GN=SNCA PE=1 SV=1'
     # protein_name = 'sp|Q9Y6H3|ATP23_HUMAN Mitochondrial inner membrane protease ATP23 homolog OS=Homo sapiens OX=9606 GN=ATP23 PE=1 SV=3'
     # protein_name = 'tr|Q6JHZ5|Q6JHZ5_HUMAN NS5ATP13TP1 OS=Homo sapiens OX=9606 PE=2 SV=1'
+    protein_name = 'sp|A0A0A0MT89|KJ01_HUMAN Immunoglobulin kappa joining 1 OS=Homo sapiens OX=9606 GN=IGKJ1 PE=4 SV=2'
 
     # load models
     model_6aa, model_10aa, model_15aa, ensemble_model, selected_features = load_models('../model_development/models_3B')
     # scan protein
-    scores_6aa, scores_10aa, scores_15aa, scores_df = scan_protein(protein_name, model_6aa, model_10aa, model_15aa, selected_features, embeddings_dir='human_genome_embeddings')
-    
+    scores_df = scan_protein(protein_name, model_6aa, model_10aa, model_15aa, selected_features, embeddings_dir='human_genome_embeddings')
+    scores_6aa = scores_df['6aa']; scores_10aa = scores_df['10aa']; scores_15aa = scores_df['15aa']
+
     # plot results
     plt.figure(figsize=(10, 6))
     plt.plot(scores_6aa.index, scores_6aa.values, color='b', label='6aa frag model')
