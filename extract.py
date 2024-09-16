@@ -45,10 +45,11 @@ def create_parser():
         "--include",
         type=str,
         nargs="+",
-        choices=["mean", "per_tok", "bos", "contacts"],
+        choices=["mean", "per_tok", "bos", "contacts", "attentions"],
         help="specify which representations to return",
         required=True,
     )
+ 
     parser.add_argument(
         "--truncation_seq_length",
         type=int,
@@ -80,6 +81,7 @@ def run(args):
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     return_contacts = "contacts" in args.include
+    need_head_weights = "attentions" in args.include or return_contacts
 
     assert all(-(model.num_layers + 1) <= i <= model.num_layers for i in args.repr_layers)
     repr_layers = [(i + model.num_layers + 1) % (model.num_layers + 1) for i in args.repr_layers]
@@ -92,7 +94,12 @@ def run(args):
             if torch.cuda.is_available() and not args.nogpu:
                 toks = toks.to(device="cuda", non_blocking=True)
 
-            out = model(toks, repr_layers=repr_layers, return_contacts=return_contacts)
+            out = model(
+                toks,
+                repr_layers=repr_layers,
+                return_contacts=return_contacts,
+                need_head_weights=need_head_weights,  # Add this line
+            )
 
             logits = out["logits"].to(device="cpu")
             representations = {
@@ -100,6 +107,8 @@ def run(args):
             }
             if return_contacts:
                 contacts = out["contacts"].to(device="cpu")
+            if need_head_weights:
+                attentions = out["attentions"].to(device="cpu")
 
             for i, label in enumerate(labels):
                 args.output_file = args.output_dir / f"{label}.pt"
@@ -124,13 +133,16 @@ def run(args):
                     }
                 if return_contacts:
                     result["contacts"] = contacts[i, : truncate_len, : truncate_len].clone()
+                
+                if "attentions" in args.include:
+                    # Save attentions for each sequence
+                    result["attentions"] = attentions[i].clone()
 
                 torch.save(
                     result,
                     args.output_file,
-                )
-
-
+                ) 
+                
 def main():
     parser = create_parser()
     args = parser.parse_args()
