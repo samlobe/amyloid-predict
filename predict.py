@@ -13,34 +13,55 @@ parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragme
 parser.add_argument('--sequence','-s', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s). Use this if you do not already have embeddings for your sequence(s).')
 parser.add_argument('--embeddingsDir', help='Directory containing ESM embeddings files (.pt) with "mean_representations" for your sequence(s). Use this if you already have embeddings for your sequences (extract.py is a good way to get embeddings).')
 parser.add_argument('--embeddingsFile', help='Pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
-parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage.')
+parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage. May be useful if you have memory issues.')
 parser.add_argument('--output','-o', help='Output file name for predictions. Default is amyloidogenicity.csv', default='amyloidogenicity.csv')
-parser.add_argument('--embeddings_output', help='Output file name for embeddings. Default is embeddings.npy', default='embeddings.npy')
-parser.add_argument('--model','-m', help='Size of ESM model to use. Options: "3B" or "15B". Default is 3B.', default='3B')
+parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: "3B" or "15B". Default is 3B.', default='3B')
+parser.add_argument('--classifiers', nargs='+', choices=['6aa', '10aa', '15aa', 'ensembled', 'all'], default=['all'],
+                    help="Classifier(s) to use. Options: '6aa', '10aa', '15aa', 'ensembled', or 'all'.")
+parser.add_argument('--embeddings_output', help='Output file name for embeddings if you want them. Will save as .npy')
 args = parser.parse_args()
 
 # Example usage:
 # python predict.py -s VQIVYK
 # python predict.py -s example.fasta
-# python predict.py --embeddingsFile "example_embeddings_dir/X6R8D5_1_127|X6R8D5.pt"
+# python predict.py --embeddingsFile example_embeddings_dir/example_IDR_1.pt
 # python predict.py --embeddingsDir example_embeddings_dir
 
 # make sure args.model is valid
-if args.model not in ['3B', '15B']:
+if args.ESM_model not in ['3B', '15B']:
     raise ValueError('Invalid model argument. Must be 3B or 15B.')
-print(f'Using ESM {args.model} model.')
+print(f'Using ESM {args.ESM_model} model.')
 
-# make sure only one of --sequence, --embeddingsFile, or --embeddingsDir is specified
-if sum([bool(args.sequence), bool(args.embeddingsFile), bool(args.embeddingsDir)]) != 1:
-    raise ValueError('Only one of --sequence, --embeddingsFile, or --embeddingsDir must be specified.')
+# Process classifiers argument
+if 'all' in args.classifiers:
+    classifiers_to_use = ['6aa', '10aa', '15aa', 'ensembled']
+else:
+    classifiers_to_use = args.classifiers
 
-### load classification models
-model_dir = f'model_development/models_{args.model}'
-model_15aa = joblib.load(f'{model_dir}/tau_top_model.joblib') # trained on 15aa tau fragments from Louros et. al. 2024 (PAM4 paper)
-model_6aa = joblib.load(f'{model_dir}/WALTZtht_top_model.joblib') # trained on 6aa peptides from WALTZdb, specifically those with Th-T data (http://waltzdb.switchlab.org)
-model_10aa = joblib.load(f'{model_dir}/TANGO_Table2_top_model.joblib') # trained on 10aa fragments of PrP, lysozyme, and β-microglobulin from Fernandez-Escamilla, et. al. 2004 (TANGO paper)
-ensemble_model = joblib.load(f'{model_dir}/ensemble_model.joblib') # uses logits from other 3 models for final prediction
-selected_features = np.loadtxt(f'{model_dir}/selected_features_{args.model}.csv', dtype=str)
+# Determine which models need to be loaded
+models_to_load = set()
+if '6aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
+    models_to_load.add('6aa')
+if '10aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
+    models_to_load.add('10aa')
+if '15aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
+    models_to_load.add('15aa')
+if 'ensembled' in classifiers_to_use:
+    models_to_load.add('ensembled')
+
+# Load classification models as per user's choice
+model_dir = f'model_development/models_{args.ESM_model}'
+models = {}
+selected_features = np.loadtxt(f'{model_dir}/selected_features_{args.ESM_model}.csv', dtype=str)
+
+if '6aa' in models_to_load:
+    models['6aa'] = joblib.load(f'{model_dir}/WALTZtht_top_model.joblib')
+if '10aa' in models_to_load:
+    models['10aa'] = joblib.load(f'{model_dir}/TANGO_Table2_top_model.joblib')
+if '15aa' in models_to_load:
+    models['15aa'] = joblib.load(f'{model_dir}/tau_top_model.joblib')
+if 'ensembled' in models_to_load:
+    models['ensembled'] = joblib.load(f'{model_dir}/ensemble_model.joblib')
 
 #%%
 if args.sequence:
@@ -65,7 +86,7 @@ if args.sequence:
         names = [args.sequence]
     
     # Load ESM2 model
-    if args.model == '3B':
+    if args.ESM_model == '3B':
         model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
         layer = 36
     else:
@@ -86,7 +107,7 @@ if args.sequence:
     
     batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
     tok = time()
-    print(f'Time to load model and preprocess data: {tok-tik:.2f} s')
+    print(f'Time to load ESM model and preprocess data: {tok-tik:.2f} s')
     
     tik = time()
     # Extract per-residue representations
@@ -102,13 +123,15 @@ if args.sequence:
     
     sequence_representations = torch.stack(sequence_representations).cpu().numpy()
     
-    # save embeddings
-    np.save(args.embeddings_output, sequence_representations)
+    # save embeddings 
+    if args.embeddings_output:
+        np.save(args.embeddings_output, sequence_representations)
+        print(f'Embeddings saved to {args.embeddings_output}')
 
 elif args.embeddingsFile:
     print('Processing embeddings file...')
     # process embeddingsFile
-    if args.model == '3B':
+    if args.ESM_model == '3B':
         layer = 36
     else:
         layer = 48
@@ -133,7 +156,7 @@ elif args.embeddingsDir:
     # process embeddingsDir
     embeddings_list = []
     names = []
-    if args.model == '3B':
+    if args.ESM_model == '3B':
         layer = 36
     else:
         layer = 48
@@ -157,49 +180,81 @@ elif args.embeddingsDir:
         raise ValueError('No .pt files found in the specified embeddings directory.')
     sequence_representations = np.stack(embeddings_list, axis=0)
 
-else:
-    raise ValueError('One of --sequence, --embeddingsFile, or --embeddingsDir must be specified.')
-
-
 # put into df
 columns = [f'embedding_{i}' for i in range(sequence_representations.shape[1])]
 embeddings_df = pd.DataFrame(sequence_representations, index=names, columns=columns)
 X = embeddings_df[selected_features]
 
-logits_15aa = model_15aa.decision_function(X)
-logits_6aa = model_6aa.decision_function(X)
-logits_10aa = model_10aa.decision_function(X)
-logits = np.vstack([logits_15aa, logits_6aa, logits_10aa]).T
+# Initialize dictionaries to store scores and logits
+scores = {}
+logits = {}
 
-ensemble_score = ensemble_model.predict_proba(logits)[:, 1] # probability of being amyloidogenic
-ensemble_score = np.round(ensemble_score, 3)
-score_15aa = model_15aa.predict_proba(X)[:, 1] ; score_15aa = np.round(score_15aa, 3)
-score_6aa = model_6aa.predict_proba(X)[:, 1]; score_6aa = np.round(score_6aa, 3)
-score_10aa = model_10aa.predict_proba(X)[:, 1]; score_10aa = np.round(score_10aa, 3)
+# Compute predictions for each classifier
+for model_name in ['6aa', '10aa', '15aa']:
+    if model_name in models_to_load:
+        model = models[model_name]
+        logits_model = model.decision_function(X)
+        logits[model_name] = logits_model
+        score_model = model.predict_proba(X)[:, 1]
+        scores[model_name] = np.round(score_model, 3)
 
-# print results
-for name, predE, pred6, pred10, pred15 in zip(names, ensemble_score, score_15aa, score_6aa, score_10aa):
+# Compute ensemble model predictions if selected
+if 'ensembled' in classifiers_to_use:
+    # Ensure logits for individual models are available
+    required_models = ['6aa', '10aa', '15aa']
+    for req_model in required_models:
+        if req_model not in logits:
+            raise ValueError(f"Logits for model '{req_model}' are required for ensemble prediction but were not computed.")
+    # Stack logits and compute ensemble predictions
+    logits_array = np.vstack([logits['15aa'], logits['6aa'], logits['10aa']]).T
+    ensemble_model = models['ensembled']
+    ensemble_score = ensemble_model.predict_proba(logits_array)[:, 1]
+    scores['ensembled'] = np.round(ensemble_score, 3)
+
+# Print results
+for i, name in enumerate(names):
     print(f'\n{name}')
-    print(f'Ensemble score: {predE:.3f}')
-    print(f'15aa model score: {pred15:.3f}')
-    print(f'10aa model score: {pred10:.3f}')
-    print(f'6aa model score: {pred6:.3f}')
+    for classifier in classifiers_to_use:
+        score = scores[classifier][i]
+        print(f'{classifier} model score: {score:.3f}')
 
-# output csv with all 4 predictions
-output_df = pd.DataFrame({'name': names, 'ensemble_score': ensemble_score, '15aa_model_score': score_15aa, '10aa_model_score': score_10aa, '6aa_model_score': score_6aa})
+# Prepare output DataFrame
+output_df = pd.DataFrame({'name': names})
+for classifier in classifiers_to_use:
+    output_df[f'{classifier}_score'] = scores[classifier]
 output_df.to_csv(args.output, index=False)
-print('Predictions saved to ', args.output)
+print('Predictions saved to', args.output)
 
-# if multiple sequences are provided, plot the ensemble model predictions
+# Plotting
 if len(names) == 1:
     exit()
-# plot bar graph of predictions
-plt.figure()
-# bar width should be small
-plt.bar(names, ensemble_score, width=0.4, label='Ensemble model')
-plt.title(f'ensemble model predictions\n(using {args.model} model)')
-plt.ylabel('amyloidogenicity')
-# rotate the x-ticks 90 degrees
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.show()
+
+if 'ensembled' in classifiers_to_use:
+    # Plot only the ensembled model
+    plt.figure()
+    plt.bar(names, scores['ensembled'], width=0.4, label='Ensembled model')
+    plt.title(f'Ensembled model predictions\n(using ESM {args.ESM_model} model)')
+    plt.ylabel('Amyloidogenicity')
+    plt.xticks(rotation=90)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+else:
+    # Plot the selected classifiers ('6aa', '10aa', '15aa')
+    plt.figure()
+    x = np.arange(len(names))  # the label locations
+    width = 0.2  # the width of the bars
+
+    num_classifiers = len(classifiers_to_use)
+    offsets = np.linspace(-width*num_classifiers/2, width*num_classifiers/2, num_classifiers, endpoint=False) + width/2
+
+    for idx, classifier in enumerate(classifiers_to_use):
+        plt.bar(x + offsets[idx], scores[classifier], width=width, label=f'{classifier} model')
+
+    plt.xticks(x, names, rotation=90)
+    plt.ylabel('Amyloidogenicity')
+    plt.title(f'Model predictions\n(using ESM {args.ESM_model} model)')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
