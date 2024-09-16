@@ -45,7 +45,7 @@ Then I used this smaller set of features to train a logistic regression model or
 The accuracy of each model will degrade if you apply it in ways that deviate from its training. For example, the 6aa model will not classify 15aa fragments as well as the 15aa model. The ensembled model is the most general and may work fine on e.g. 18aa fragments, but will likely perform worse on 30aa fragments.
 
 To predict amyloidogenicity for longer peptides, I recommended breaking a longer protein into many short, overlapping fragments of lengths 6aa, 10aa, and 15aa; then getting a prediction for each fragment; finally aggregating these scores into a per-residue score. You can use a workflow like this: 
-1. Break protein/peptides into overlapping fragments using `fragment_fasta.py` (in "IDR_scanning" directory):
+1. Break protein/peptides into overlapping fragments using `fragment_fasta.py` (in "human_IDR_scanning" directory):
    - `python fragment_fasta.py IDRs.fasta IDRs_6aa_frag_1sw.fasta 6 1`
    - `python fragment_fasta.py IDRs.fasta IDRs_10aa_frag_2sw.fasta 10 2` # larger sliding windows require less computation time and storage space
    - `python fragment_fasta.py IDRs.fasta IDRs_15aa_frag_3sw.fasta 15 3` 
@@ -54,14 +54,14 @@ To predict amyloidogenicity for longer peptides, I recommended breaking a longer
    - `python predict.py -s IDRs_10aa_frag_2sw.fasta --classifiers 10aa -o scores_10aa.csv`
    - `python predict.py -s IDRs_15aa_frag_3ws.fasta --classifiers 15aa -o scores_15aa.csv`
 3. Aggregate each fragments' scores into a per-residue score:
-   - `python get_perResidue_scores.py` ; see contents of "IDR_scanning/get_perResidue_scores" for one way to aggregate fragment scores into residue scores.
+   - `python get_perResidue_scores.py` ; see contents of "human_IDR_scanning/get_perResidue_scores" for one way to aggregate fragment scores into residue scores.
 
 This workflow can be used to analyze all the IDRs in the human genome with a few hours of computation on a GPU (~15 hrs on my NVIDIA RTX 3900 Ti).  
 
 I got these human IDRs from [this repo](github.com/KULL-Centre/_2023_Tesei_IDRome) from this very nice [paper](https://doi.org/10.1038/s41586-023-07004-5). 
-I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "IDR_scanning" if you're interested. 
+I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested. 
 
 # Acknowledgments
 - The developers of ESM
 - Tesei, Lindorff-Larsen, et. al. for their work that inspired parts of this, and for having easy-to-use code on their github
-- Shell Lab & Shea Group at UCSB for funding
+- My advisors: Scott Shell & Joan-Emma Shea
