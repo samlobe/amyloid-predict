@@ -3,6 +3,8 @@ This model was trained to predict amyloid formation of peptides from just the pe
 It was trained on 6aa, 10aa, and 15aa peptides and is meant to be applied on IDP (intrinsically disordered protein) or IDR (intrinsically disordered region) fragments of those sizes.
 
 ## Quick Start 
+Use a computer that has 12+ GB of RAM. It works well on my 16GB RAM Mac CPU, but is way faster on my 24GB VRAM GPU.  
+
 I recommend creating a new conda environment:  
 ```bash
 conda create -n amyloidPredict python=3.9
@@ -10,10 +12,10 @@ conda activate amyloidPredict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
 conda install pytorch pandas scikit-learn matplotlib tqdm 
 ```
-After pip install, download the weights of the 3B parameter ESM2 model locally (~5.3GB) by executing this in python:
+After pip install, download the weights of the 3B parameter ESM2 model locally (~12GB of weights, compressed into ~5.3GB) by executing this in python:
 ```python
 import esm
-model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
+model, alphabet = esm.pretrained.esm2_t36_3B_UR50D() # takes a few min; may fail if you don't have enough free RAM / SWAP
 ```
 Then you can **extract ESM embeddings** and **predict amyloidogenicity** of a peptide sequence (one-letter codes) with:  
 `python predict.py --sequence VQIVYK`  
@@ -27,9 +29,9 @@ If you already have ESM embeddings of sequences you can predict amyloidogenicity
 or by pointing to the directory with all the embeddings files:  
 `python predict.py --embeddingsDir example_embeddings_dir`
 
-Extracting ESM embeddings is reasonably fast on my Mac's CPUs, but is much faster on a GPU. Predicting amyloidogenicity should be very fast on CPUs or GPUs. 
+Extracting ESM embeddings with **predict.py** is reasonably fast on my Mac's CPUs, but is 3-4 orders of magnitude faster on a GPU. Predicting amyloidogenicity with **predict.py** should be very fast on CPUs or GPUs. 
 
-The easiest/smartest way to extract ESM embeddings for many files is with the **extract.py** tool, which I altered slightly from the ESM repo. See their original documentation [here](https://github.com/facebookresearch/esm), or do `python extract.py -h` to see how to use it. Make sure to output the mean representations of the embeddings with the `--include mean` flag. 
+The easiest/smartest way to extract ESM embeddings for hundreds or thousands of sequences is with the **extract.py** tool, which I altered slightly from the ESM repo. See their original documentation [here](https://github.com/facebookresearch/esm), or do `python extract.py -h` to see how to use it. Make sure to output the mean representations of the embeddings with the `--include mean` flag. 
 
 ## How it works
 I made a classification model to predict amyloid formation based on some public amyloid datasets: [15aa tau fragment dataset](https://doi.org/10.1038/s41467-024-45429-2), [10aa TANGO dataset](https://doi.org/10.1038/nbt1012), [6aa WALTZ dataset](http://waltzdb.switchlab.org/sequences).  
@@ -59,7 +61,7 @@ To predict amyloidogenicity for longer peptides, I recommended breaking a longer
 This workflow can be used to analyze all the IDRs in the human genome with a few hours of computation on a GPU (~15 hrs on my NVIDIA RTX 3900 Ti).  
 
 I got these human IDRs from [this repo](github.com/KULL-Centre/_2023_Tesei_IDRome) from this very nice [paper](https://doi.org/10.1038/s41586-023-07004-5). 
-I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested. 
+I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested.  **combined_per_res_scores.pkl** has amyloid scores for each amino acid in an IDR of a human protein. You can plot these scores using **plot_IDR_res_scores.py** and inputting the UniProt ID and a range of residues that you care about.
 
 # Acknowledgments
 - The developers of ESM
