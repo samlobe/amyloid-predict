@@ -50,7 +50,7 @@ if 'ensembled' in classifiers_to_use:
     models_to_load.add('ensembled')
 
 # Load classification models as per user's choice
-current_directory = os.path.dirname(os.path.abspath(__file__))
+current_directory = os.path.dirname(os.path.realpath(__file__))
 model_dir= os.path.join(current_directory, "model_development", f"models_{args.ESM_model}")
 model_dir = f'model_development/models_{args.ESM_model}'
 models = {}
