@@ -51,7 +51,7 @@ if 'ensembled' in classifiers_to_use:
 
 # Load classification models as per user's choice
 current_directory = os.path.dirname(os.path.abspath(__file__))
-model_dir= os.path.join(current_directory, "model_development", f"models_{args.ESM_model")
+model_dir= os.path.join(current_directory, "model_development", f"models_{args.ESM_model}")
 model_dir = f'model_development/models_{args.ESM_model}'
 models = {}
 selected_features = np.loadtxt(f'{model_dir}/selected_features_{args.ESM_model}.csv', dtype=str)
