@@ -10,9 +10,11 @@ import matplotlib.pyplot as plt
 import os
 
 parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragments in a protein sequence.')
-parser.add_argument('--sequence','-s', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s). Use this if you do not already have embeddings for your sequence(s).')
-parser.add_argument('--embeddingsDir', help='Directory containing ESM embeddings files (.pt) with "mean_representations" for your sequence(s). Use this if you already have embeddings for your sequences (extract.py is a good way to get embeddings).')
-parser.add_argument('--embeddingsFile', help='Pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
+# Create mutually exclusive group for sequence, embeddingsFile, and embeddingsDir
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument('--sequence', '-s', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s). Use this if you do not already have embeddings for your sequence(s).')
+group.add_argument('--embeddingsDir', help='Directory containing ESM embeddings files (.pt) with "mean_representations" for your sequence(s). Use this if you already have embeddings for your sequences (extract.py is a good way to get embeddings).')
+group.add_argument('--embeddingsFile', help='Pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
 parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage. May be useful if you have memory issues.')
 parser.add_argument('--output','-o', help='Output file name for predictions. Default is amyloidogenicity.csv', default='amyloidogenicity.csv')
 parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: "3B" or "15B". Default is 3B.', default='3B')
