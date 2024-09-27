@@ -70,6 +70,7 @@ if 'ensembled' in models_to_load:
 #%%
 if args.sequence:
     tik = time()
+    print('Extracting embeddings...')
     if args.sequence.endswith('.fasta') or args.sequence.endswith('.fa'):
         print('Processing fasta file...')
         # get a list of names and sequences
@@ -119,7 +120,7 @@ if args.sequence:
         results = model(batch_tokens, repr_layers=[layer], return_contacts=False)
     token_representations = results["representations"][layer]
     tok = time()
-    print(f'Time to extract per-token embeddings: {tok-tik:.2f} s')
+    print(f'Time to extract embeddings: {tok-tik:.2f} s')
     
     sequence_representations = []
     for i, tokens_len in enumerate(batch_lens):
