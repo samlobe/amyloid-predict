@@ -10,7 +10,7 @@ I recommend creating a new conda environment:
 conda create -n amyloidPredict python=3.9
 conda activate amyloidPredict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
-conda install pytorch pandas scikit-learn matplotlib tqdm 
+conda install pytorch pandas scikit-learn matplotlib tqdm # you may need to add "joblib" here too
 ```
 After pip install, download the weights of the 3B parameter ESM2 model locally (~12GB of weights, compressed into ~5.3GB) by executing this in python:
 ```python
@@ -62,6 +62,15 @@ This workflow can be used to analyze all the IDRs in the human genome with a few
 
 I got these human IDRs from [this repo](github.com/KULL-Centre/_2023_Tesei_IDRome) from this very nice [paper](https://doi.org/10.1038/s41586-023-07004-5). 
 I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested.  **combined_per_res_scores.pkl** has amyloid scores for each amino acid in an IDR of a human protein. You can plot these scores using **plot_IDR_res_scores.py** and inputting the UniProt ID and a range of residues that you care about.
+
+# Troubleshooting Memory Issues
+**predict.py** should work find to extract embeddings for *several* or *dozens* of sequences, depending on your RAM size.  
+
+**extract.py** with the `--include mean` flag is recommended when you have *hundreds* or *thousands* of sequences, because it will batch your sequences appropriately.  
+You can reduce `--toks_per_batch` (default=4096) if you still have memory issues (e.g. `--toks_per_batch 500`).  
+Additionally if you're using a GPU, the `--nogpu` flag can move the embeddings extraction to a CPU (which tend to have more RAM) to avoid memory issues.  
+Here's an example extract.py command to minimize memory issues:  
+`python extract.py esm2_t36_3B_UR50D example.fasta output_dir --toks_per_batch 500 --include mean --nogpu`
 
 # Acknowledgments
 - The developers of ESM
