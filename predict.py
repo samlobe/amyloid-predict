@@ -14,60 +14,43 @@ parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragme
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--sequence', '-s', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s). Use this if you do not already have embeddings for your sequence(s).')
 group.add_argument('--embeddingsDir', help='Directory containing ESM embeddings files (.pt) with "mean_representations" for your sequence(s). Use this if you already have embeddings for your sequences (extract.py is a good way to get embeddings).')
-group.add_argument('--embeddingsFile', help='Pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
+group.add_argument('--embeddingsFile', help='A pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
 parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage. May be useful if you have memory issues.')
 parser.add_argument('--output','-o', help='Output file name for predictions. Default is amyloidogenicity.csv', default='amyloidogenicity.csv')
-parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: "3B" or "15B". Default is 3B.', default='3B')
-parser.add_argument('--classifiers', nargs='+', choices=['6aa', '10aa', '15aa', 'ensembled', 'all'], default=['all'],
-                    help="Classifier(s) to use. Options: '6aa', '10aa', '15aa', 'ensembled', or 'all'.")
+# parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: currently only "3B" model is supported.', default='3B')
+parser.add_argument('--classifiers', nargs='+', choices=['6aa-FETA','6aa-best','10aa', '15aa', 'general'], default=['6aa-FETA','10aa', '15aa', 'general'],
+                    help="Classifier(s) to use. Options: '6aa-FETA','6aa-best', '10aa', '15aa', 'general'.")
 parser.add_argument('--embeddings_output', help='Output file name for embeddings if you want them. Will save as .npy')
 args = parser.parse_args()
 
 # Example usage:
-# python predict.py -s VQIVYK
-# python predict.py -s example.fasta
-# python predict.py --embeddingsFile example_embeddings_dir/example_IDR_1.pt
-# python predict.py --embeddingsDir example_embeddings_dir
-
-# make sure args.model is valid
-if args.ESM_model not in ['3B', '15B']:
-    raise ValueError('Invalid model argument. Must be 3B or 15B.')
-print(f'Using ESM {args.ESM_model} model.')
+# `python predict.py -s VQIVYK` will extract embeddings and output predictions for the single hexapeptide sequence
+# `python predict.py -s example.fasta` will extract embeddings and output predictions for each sequence in the fasta file
+# `python predict.py --embeddingsFile example_embeddings_dir/example_IDR_1.pt` will output predictions for the pre-computed embeddings in the .pt file
+# `python predict.py --embeddingsDir example_embeddings_dir` will output predictions for all the pre-computed embeddings in the dir
 
 # Process classifiers argument
-if 'all' in args.classifiers:
-    classifiers_to_use = ['6aa', '10aa', '15aa', 'ensembled']
-else:
-    classifiers_to_use = args.classifiers
-
-# Determine which models need to be loaded
-models_to_load = set()
-if '6aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
-    models_to_load.add('6aa')
-if '10aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
-    models_to_load.add('10aa')
-if '15aa' in classifiers_to_use or 'ensembled' in classifiers_to_use:
-    models_to_load.add('15aa')
-if 'ensembled' in classifiers_to_use:
-    models_to_load.add('ensembled')
+classifiers_to_use = args.classifiers
 
 # Load classification models as per user's choice
 current_directory = os.path.dirname(os.path.realpath(__file__))
-model_dir= os.path.join(current_directory, "model_development", f"models_{args.ESM_model}")
-model_dir = f'model_development/models_{args.ESM_model}'
+model_dir= os.path.join(current_directory, "model_development", "models")
 models = {}
-selected_features = np.loadtxt(f'{model_dir}/selected_features_{args.ESM_model}.csv', dtype=str)
 
-if '6aa' in models_to_load:
-    models['6aa'] = joblib.load(f'{model_dir}/WALTZtht_top_model.joblib')
-if '10aa' in models_to_load:
-    models['10aa'] = joblib.load(f'{model_dir}/TANGO_Table2_top_model.joblib')
-if '15aa' in models_to_load:
-    models['15aa'] = joblib.load(f'{model_dir}/tau_top_model.joblib')
-if 'ensembled' in models_to_load:
-    models['ensembled'] = joblib.load(f'{model_dir}/ensemble_model.joblib')
+if '6aa-FETA' in classifiers_to_use:
+    models['6aa-FETA'] = joblib.load(f'{model_dir}/6aa_FETA_model_latest.joblib')
+if '6aa-best' in classifiers_to_use:
+    models['6aa-best'] = joblib.load(f'{model_dir}/6aa_best_model_latest.joblib')
+if '10aa' in classifiers_to_use:
+    models['10aa'] = joblib.load(f'{model_dir}/10aa_model_latest.joblib')
+if '15aa' in classifiers_to_use:
+    models['15aa'] = joblib.load(f'{model_dir}/15aa_model_latest.joblib')
+if 'general' in classifiers_to_use:
+    models['general'] = joblib.load(f'{model_dir}/general_model_latest.joblib')
 
 #%%
+
+layer = 36 # number of layers in the ESM2 3B model's transformer
 if args.sequence:
     tik = time()
     print('Extracting embeddings...')
@@ -90,13 +73,9 @@ if args.sequence:
         sequences = [args.sequence]
         names = [args.sequence]
     
-    # Load ESM2 model
-    if args.ESM_model == '3B':
-        model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
-        layer = 36
-    else:
-        model, alphabet = esm.pretrained.esm2_t48_15B_UR50D()
-        layer = 48
+    # Load ESM2 model (3B parameter model)
+    model, alphabet = esm.pretrained.esm2_t36_3B_UR50D()
+
     batch_converter = alphabet.get_batch_converter()
     model.eval()  # disables dropout for deterministic results
     
@@ -112,7 +91,7 @@ if args.sequence:
     
     batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
     tok = time()
-    print(f'Time to load ESM model and preprocess data: {tok-tik:.2f} s')
+    print(f'Time to load ESM model and preprocess data: {tok-tik:.0f} s')
     
     tik = time()
     # Extract per-residue representations
@@ -136,11 +115,6 @@ if args.sequence:
 elif args.embeddingsFile:
     print('Processing embeddings file...')
     # process embeddingsFile
-    if args.ESM_model == '3B':
-        layer = 36
-    else:
-        layer = 48
-
     data = torch.load(args.embeddingsFile, weights_only=True)
     if 'mean_representations' in data:
         if layer in data['mean_representations']:
@@ -161,10 +135,6 @@ elif args.embeddingsDir:
     # process embeddingsDir
     embeddings_list = []
     names = []
-    if args.ESM_model == '3B':
-        layer = 36
-    else:
-        layer = 48
     found_pt_files = False
     for filename in os.listdir(args.embeddingsDir):
         if filename.endswith('.pt'):
@@ -178,7 +148,7 @@ elif args.embeddingsDir:
                     name = os.path.splitext(filename)[0]
                     names.append(name)
                 else:
-                    raise ValueError(f"The 'mean_representations' in {filepath} does not contain layer {layer}.")
+                    raise ValueError(f"The 'mean_representations' in {filepath} does not contain layer {layer} (last layer of ESM2 3B model)")
             else:
                 raise ValueError(f"File {filepath} does not contain 'mean_representations'. Please provide .pt files with 'mean_representations'. You can use extract.py with the `--include mean` to get this.")
     if not found_pt_files:
@@ -188,33 +158,38 @@ elif args.embeddingsDir:
 # put into df
 columns = [f'embedding_{i}' for i in range(sequence_representations.shape[1])]
 embeddings_df = pd.DataFrame(sequence_representations, index=names, columns=columns)
-X = embeddings_df[selected_features]
+X = embeddings_df
 
 # Initialize dictionaries to store scores and logits
 scores = {}
 logits = {}
 
-# Compute predictions for each classifier
-for model_name in ['6aa', '10aa', '15aa']:
-    if model_name in models_to_load:
-        model = models[model_name]
-        logits_model = model.decision_function(X)
-        logits[model_name] = logits_model
-        score_model = model.predict_proba(X)[:, 1]
-        scores[model_name] = np.round(score_model, 3)
+print("\nGenerating predictions for selected classifiers...")
+for classifier_name in classifiers_to_use:
+    if classifier_name in models.keys():
+        print(f"Generating predictions using {classifier_name} model...")
+        
+        # Load model and associated data
+        loaded_data = models[classifier_name]
+        model = loaded_data['model']
+        scaler = loaded_data['scaler']
+        
+        embeddings_scaled = scaler.transform(embeddings_df) # # Scale selected features
 
-# Compute ensemble model predictions if selected
-if 'ensembled' in classifiers_to_use:
-    # Ensure logits for individual models are available
-    required_models = ['6aa', '10aa', '15aa']
-    for req_model in required_models:
-        if req_model not in logits:
-            raise ValueError(f"Logits for model '{req_model}' are required for ensemble prediction but were not computed.")
-    # Stack logits and compute ensemble predictions
-    logits_array = np.vstack([logits['15aa'], logits['6aa'], logits['10aa']]).T
-    ensemble_model = models['ensembled']
-    ensemble_score = ensemble_model.predict_proba(logits_array)[:, 1]
-    scores['ensembled'] = np.round(ensemble_score, 3)
+        # Handle feature selection (for 6aa-FETA and 6aa-best)
+        if classifier_name in ['6aa-FETA', '6aa-best']:
+            if 'feature_set' not in loaded_data:
+                raise ValueError(f"'feature_set' is missing in the {classifier_name} model file.")
+            feature_set = loaded_data['feature_set']
+            if isinstance(feature_set, tuple):
+                feature_set = list(feature_set)
+            embeddings_scaled = embeddings_scaled[:, feature_set]  # Subset to selected features
+
+        # Make predictions
+        predictions = model.predict_proba(embeddings_scaled)[:, 1]
+        scores[classifier_name] = np.round(predictions, 3)
+    else:
+        raise ValueError(f"Classifier '{classifier_name}' not found in the loaded models. Please check your model directory.")
 
 # Print results
 for i, name in enumerate(names):
@@ -230,36 +205,19 @@ for classifier in classifiers_to_use:
 output_df.to_csv(args.output, index=False)
 print('Predictions saved to', args.output)
 
-# Plotting
-if len(names) == 1:
-    exit()
-
-if 'ensembled' in classifiers_to_use:
-    # Plot only the ensembled model
-    plt.figure()
-    plt.bar(names, scores['ensembled'], width=0.4, label='Ensembled model')
-    plt.title(f'Ensembled model predictions\n(using ESM {args.ESM_model} model)')
-    plt.ylabel('Amyloidogenicity')
-    plt.xticks(rotation=90)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+# Plotting predictions if there are multiple sequences
+if len(names) > 1:
+    print("\nGenerating bar graphs for predictions...")
+    for classifier in classifiers_to_use:
+        if classifier in scores:
+            plt.figure(figsize=(10, 6))
+            plt.bar(names, scores[classifier], color='skyblue', alpha=0.8)
+            plt.title(f"{classifier} Model Predictions", fontsize=16)
+            plt.xlabel("Sequence Name", fontsize=14)
+            plt.ylabel("Amyloidogenicity Score", fontsize=14)
+            plt.xticks(rotation=45, fontsize=12, ha='right')
+            plt.yticks(fontsize=12)
+            plt.tight_layout()
+            plt.show()
 else:
-    # Plot the selected classifiers ('6aa', '10aa', '15aa')
-    plt.figure()
-    x = np.arange(len(names))  # the label locations
-    width = 0.2  # the width of the bars
-
-    num_classifiers = len(classifiers_to_use)
-    offsets = np.linspace(-width*num_classifiers/2, width*num_classifiers/2, num_classifiers, endpoint=False) + width/2
-
-    for idx, classifier in enumerate(classifiers_to_use):
-        plt.bar(x + offsets[idx], scores[classifier], width=width, label=f'{classifier} model')
-
-    plt.xticks(x, names, rotation=90)
-    plt.ylabel('Amyloidogenicity')
-    plt.title(f'Model predictions\n(using ESM {args.ESM_model} model)')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
+    print("\nSingle sequence detected. Skipping bar graphs.")

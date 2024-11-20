@@ -361,7 +361,7 @@ FETA_model = LogisticRegression(
     C=best_params['C'],
     random_state=42,
 )
-FETA.fit(X_full_selected, y_full)
+FETA_model.fit(X_full_selected, y_full)
 
 print(f"Number of Features Selected: {len(feature_set)}")
 print(f"Best C: {best_params['C']:.4f}")

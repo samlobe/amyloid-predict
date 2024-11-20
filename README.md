@@ -1,17 +1,21 @@
 # amyloidPredict
 This model was trained to predict amyloid formation of peptides from just the peptide sequence.  
-It was trained on 6aa, 10aa, and 15aa peptides and is meant to be applied on IDP (intrinsically disordered protein) or IDR (intrinsically disordered region) fragments of those sizes.
+It was trained on 6aa, 10aa, and 15aa peptides and is meant to be applied on IDP (intrinsically disordered protein) or IDR (intrinsically disordered region) fragments with similar sizes
 
 ## Quick Start 
 Use a computer that has 12+ GB of RAM. It works well on my 16GB RAM Mac CPU, but is way faster on my 24GB VRAM GPU.  
 
-I recommend creating a new conda environment:  
+I recommend creating a new conda environment for installation:  
 ```bash
 conda create -n amyloidPredict python=3.9
 conda activate amyloidPredict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
-conda install pytorch pandas scikit-learn matplotlib tqdm # you may need to add "joblib" here too
+conda install pytorch pandas scikit-learn=1.5.1 matplotlib tqdm 
 ```
+
+Alternatively, you may try installing from this environment.yml file:
+`conda env create -f environment.yml` 
+
 After pip install, download the weights of the 3B parameter ESM2 model locally (~12GB of weights, compressed into ~5.3GB) by executing this in python:
 ```python
 import esm
@@ -19,7 +23,7 @@ model, alphabet = esm.pretrained.esm2_t36_3B_UR50D() # takes a few min; may fail
 ```
 Then you can **extract ESM embeddings** and **predict amyloidogenicity** of a peptide sequence (one-letter codes) with:  
 `python predict.py --sequence VQIVYK`  
-which will output a score (between 0-1) for each of the four amyloid classification models.
+which will output a score (between 0-1) using the amyloid classification model[s].
 
 You can score multiple protein/peptide sequences in a fasta file (e.g. example.fasta) like this:  
 `python predict.py --sequence example.fasta`  
@@ -29,18 +33,18 @@ If you already have ESM embeddings of sequences you can predict amyloidogenicity
 or by pointing to the directory with all the embeddings files:  
 `python predict.py --embeddingsDir example_embeddings_dir`
 
-Extracting ESM embeddings with **predict.py** is reasonably fast on my Mac's CPUs, but is 3-4 orders of magnitude faster on a GPU. Predicting amyloidogenicity with **predict.py** should be very fast on CPUs or GPUs. 
+Extracting ESM embeddings with **predict.py** is reasonably fast on my Mac's CPUs (16GB of RAM needed), but is 3-4 orders of magnitude faster on a GPU. Predicting amyloidogenicity with **predict.py** should be very fast on CPUs or GPUs. 
 
 The easiest/smartest way to extract ESM embeddings for hundreds or thousands of sequences is with the **extract.py** tool, which I altered slightly from the ESM repo. See their original documentation [here](https://github.com/facebookresearch/esm), or do `python extract.py -h` to see how to use it. Make sure to output the mean representations of the embeddings with the `--include mean` flag. 
 
 ## How it works
 I made a classification model to predict amyloid formation based on some public amyloid datasets: [15aa tau fragment dataset](https://doi.org/10.1038/s41467-024-45429-2), [10aa TANGO dataset](https://doi.org/10.1038/nbt1012), [6aa WALTZ dataset](http://waltzdb.switchlab.org/sequences).  
 
-I trained three separate models on the 3 datasets, and then trained a more general ensemble model on the combined dataset by using the logits of the three models as features.
+I trained three separate models on the 3 datasets, and then trained a more general model on the combined dataset. For the 6aa dataset I trained an interpretable model with 10 features, and a slighly better performing model with more features. The 10-feature 6aa model is called FETA (**F**ast **E**SM-based **T**en-feature **A**myloid classifier). The other models take all the embeddings as input.
 
-Each peptide sequence was featurized with ESM embeddings - 2560 embeddings form the 36-layered, 3B parameter model or 5120 embeddings for the 48-layered, 15B parameter model. 
-Then I selected features using a logistic regression model with L1 penalty for each model that killed most features while preserving performance.
-Then I used this smaller set of features to train a logistic regression model or support vector machine for each dataset, and finally an ensembled model. See **train_3B.py** and **train_15B.py** in "model_development" for training procedure.
+Each peptide sequence was featurized with ESM embeddings - 2560 embeddings form the 36-layered, 3B parameter model.  
+All embeddings were used for the 10aa, 15aa, and general models, while 10 embeddings were used for the 6aa-FETA model.
+See the training scripts in "model_development/training" and/or see the preprint for training details.
 
 ## Predicting amyloidogenicity of larger IDRs and full genomes
 
