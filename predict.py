@@ -171,7 +171,7 @@ for classifier_name in classifiers_to_use:
         
         # Load model and associated data
         loaded_data = models[classifier_name]
-        model = loaded_data['model']
+        LR_model = loaded_data['model']
         scaler = loaded_data['scaler']
         
         embeddings_scaled = scaler.transform(embeddings_df) # # Scale selected features
@@ -186,7 +186,7 @@ for classifier_name in classifiers_to_use:
             embeddings_scaled = embeddings_scaled[:, feature_set]  # Subset to selected features
 
         # Make predictions
-        predictions = model.predict_proba(embeddings_scaled)[:, 1]
+        predictions = LR_model.predict_proba(embeddings_scaled)[:, 1]
         scores[classifier_name] = np.round(predictions, 3)
     else:
         raise ValueError(f"Classifier '{classifier_name}' not found in the loaded models. Please check your model directory.")
