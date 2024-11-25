@@ -20,6 +20,7 @@ parser.add_argument('--output','-o', help='Output file name for predictions. Def
 # parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: currently only "3B" model is supported.', default='3B')
 parser.add_argument('--classifiers', nargs='+', choices=['6aa-FETA','6aa-best','10aa', '15aa', 'general'], default=['6aa-FETA','10aa', '15aa', 'general'],
                     help="Classifier(s) to use. Options: '6aa-FETA','6aa-best', '10aa', '15aa', 'general'.")
+parser.add_argument('--model_dir', help="Directory containing model files. Default is 'model_develpment/models'.", default='model_development/models')
 parser.add_argument('--embeddings_output', help='Output file name for embeddings if you want them. Will save as .npy')
 args = parser.parse_args()
 
@@ -34,7 +35,7 @@ classifiers_to_use = args.classifiers
 
 # Load classification models as per user's choice
 current_directory = os.path.dirname(os.path.realpath(__file__))
-model_dir= os.path.join(current_directory, "model_development", "models")
+model_dir = os.path.realpath(args.model_dir)
 models = {}
 
 if '6aa-FETA' in classifiers_to_use:
