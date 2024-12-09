@@ -1,4 +1,4 @@
-# amyloidPredict
+# amyloid-predict
 This model was trained to predict amyloid formation of peptides from just the peptide sequence.  
 It was trained on 6aa, 10aa, and 15aa peptides and is meant to be applied on IDP (intrinsically disordered protein) or IDR (intrinsically disordered region) fragments with similar sizes
 
@@ -7,8 +7,8 @@ Use a computer that has 12+ GB of RAM. It works well on my 16GB RAM Mac CPU, but
 
 I recommend creating a new conda environment for installation:  
 ```bash
-conda create -n amyloidPredict python=3.9
-conda activate amyloidPredict
+conda create -n amyloid-predict python=3.9
+conda activate amyloid-predict
 pip install fair-esm # install esm (to get embeddings from 3B parameter ESM2 model)
 conda install pytorch pandas scikit-learn=1.5.1 matplotlib tqdm 
 ```
@@ -40,10 +40,9 @@ The easiest/smartest way to extract ESM embeddings for hundreds or thousands of 
 ## How it works
 I made a classification model to predict amyloid formation based on some public amyloid datasets: [15aa tau fragment dataset](https://doi.org/10.1038/s41467-024-45429-2), [10aa TANGO dataset](https://doi.org/10.1038/nbt1012), [6aa WALTZ dataset](http://waltzdb.switchlab.org/sequences).  
 
-I trained three separate models on the 3 datasets, and then trained a more general model on the combined dataset. For the 6aa dataset I trained an interpretable model with 10 features, and a slighly better performing model with more features. The 10-feature 6aa model is called FETA (**F**ast **E**SM-based **T**en-feature **A**myloid classifier). The other models take all the embeddings as input.
+I trained three separate models on the 3 datasets, and then trained a more general model on the combined dataset. For the 6aa dataset I trained a 10-feature model and a 24-feature model with slighly better performance. The 10-feature 6aa model is called FETA (**F**ast **E**SM-based **T**en-feature **A**myloid classifier), and the goal is to gain intuitions on each of the 10 features in future interpretability work. The 10aa, 15aa, and general models take all the embeddings as input.
 
-Each peptide sequence was featurized with ESM embeddings - 2560 embeddings form the 36-layered, 3B parameter model.  
-All embeddings were used for the 10aa, 15aa, and general models, while 10 embeddings were used for the 6aa-FETA model.
+Each peptide sequence was featurized with ESM embeddings - 2560 embeddings from the 36-layered, 3B parameter model.  
 See the training scripts in "model_development/training" and/or see the preprint for training details.
 
 ## Predicting amyloidogenicity of larger IDRs and full genomes
@@ -64,13 +63,13 @@ To predict amyloidogenicity for longer peptides, I recommended breaking a longer
 
 This workflow can be used to analyze all the IDRs in the human genome with a few hours of computation on a GPU (~15 hrs on my NVIDIA RTX 3900 Ti).  
 
-I got these human IDRs from [this repo](github.com/KULL-Centre/_2023_Tesei_IDRome) from this very nice [paper](https://doi.org/10.1038/s41586-023-07004-5). 
-I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested.  **combined_per_res_scores.pkl** has amyloid scores for each amino acid in an IDR of a human protein. You can plot these scores using **plot_IDR_res_scores.py** and inputting the UniProt ID and a range of residues that you care about.
+I got these human IDRs from [this repo](github.com/KULL-Centre/_2023_Tesei_IDRome) from this [paper](https://doi.org/10.1038/s41586-023-07004-5). 
+I did some further analysis on amyloidogenicity patterns for various molecular functions and cellular localizations - see "human_IDR_scanning" if you're interested.  **combined_per_res_scores.pkl** has amyloid scores for each amino acid in an IDR of a human protein. You can plot these scores using **plot_IDR_res_scores.py** and inputting the UniProt ID and, optionally, a range of residues in that IDR.
 
 # Troubleshooting Memory Issues
 **predict.py** should work find to extract embeddings for *several* or *dozens* of sequences, depending on your RAM size.  
 
-**extract.py** with the `--include mean` flag is recommended when you have *hundreds* or *thousands* of sequences, because it will batch your sequences appropriately.  
+**extract.py** with the `--include mean` flag is recommended when you have *hundreds* or *thousands* of sequences, because it efficiently batches your sequences; this script was made by the ESM developers and altered slightly by me.  
 You can reduce `--toks_per_batch` (default=4096) if you still have memory issues (e.g. `--toks_per_batch 500`).  
 Additionally if you're using a GPU, the `--nogpu` flag can move the embeddings extraction to a CPU (which tend to have more RAM) to avoid memory issues.  
 Here's an example extract.py command to minimize memory issues:  
@@ -78,5 +77,5 @@ Here's an example extract.py command to minimize memory issues:
 
 # Acknowledgments
 - The developers of ESM
-- Tesei, Lindorff-Larsen, et. al. for their work that inspired parts of this, and for having easy-to-use code on their github
+- Tesei, Lindorff-Larsen, et. al. for their IDR work that inspired parts of this, and for having easy-to-use code on their github
 - My advisors: Scott Shell & Joan-Emma Shea
