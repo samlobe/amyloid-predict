@@ -7,28 +7,29 @@ import joblib
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import glob
 import os
 
 parser = argparse.ArgumentParser(description='Predict amyloidogenicity of fragments in a protein sequence.')
 # Create mutually exclusive group for sequence, embeddingsFile, and embeddingsDir
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--sequence', '-s', help='Either a string of a peptide sequence (uppercase one-letter residue code) or a fasta file (.fasta or .fa) containing protein sequence(s). Use this if you do not already have embeddings for your sequence(s).')
-group.add_argument('--embeddingsDir', help='Directory containing ESM embeddings files (.pt) with "mean_representations" for your sequence(s). Use this if you already have embeddings for your sequences (extract.py is a good way to get embeddings).')
-group.add_argument('--embeddingsFile', help='A pytorch file (.pt) containing ESM embeddings with "mean_representations" for a sequence. Use this if you already have ESM embeddings for your sequence (extract.py is a good way to get embeddings).', default=None)
+group.add_argument('--embeddingsFiles', nargs='+', help='One or more pre-computed ESM embeddings files (.pt) with "mean_representations". Accepts glob patterns (e.g. "*.pt").')
 parser.add_argument('--nogpu', action='store_true', help='Disable GPU usage. May be useful if you have memory issues.')
 parser.add_argument('--output','-o', help='Output file name for predictions. Default is amyloidogenicity.csv', default='amyloidogenicity.csv')
 # parser.add_argument('--ESM_model', help='Size of ESM model to use. Options: currently only "3B" model is supported.', default='3B')
-parser.add_argument('--classifiers', nargs='+', choices=['6aa-FETA','6aa-best','10aa', '15aa', 'general'], default=['6aa-FETA','10aa', '15aa', 'general'],
-                    help="Classifier(s) to use. Options: '6aa-FETA','6aa-best', '10aa', '15aa', 'general'.")
+parser.add_argument('--classifiers', nargs='+', choices=['6aa-FETA','6aa','10aa', '15aa', 'general'], default=['general'],
+                    help="Classifier(s) to use. Options: '6aa-FETA','6aa', '10aa', '15aa', 'general'. Default is 'general'.")
 parser.add_argument('--model_dir', help="Directory containing model files. Default is 'model_develpment/models'.", default='model_development/models')
 parser.add_argument('--embeddings_output', help='Output file name for embeddings if you want them. Will save as .npy')
+parser.add_argument('--no_plot', action='store_true', help='Disable plotting of predictions.')
 args = parser.parse_args()
 
 # Example usage:
 # `python predict.py -s VQIVYK` will extract embeddings and output predictions for the single hexapeptide sequence
 # `python predict.py -s example.fasta` will extract embeddings and output predictions for each sequence in the fasta file
-# `python predict.py --embeddingsFile example_embeddings_dir/example_IDR_1.pt` will output predictions for the pre-computed embeddings in the .pt file
-# `python predict.py --embeddingsDir example_embeddings_dir` will output predictions for all the pre-computed embeddings in the dir
+# `python predict.py --embeddingsFiles example_embeddings_dir/example_IDR_1.pt --classifiers 6aa` will output predictions (using the 6aa-trained model) for the pre-computed embeddings in the .pt file
+# `python predict.py --embeddingsFiles example_embeddings_dir/*.pt --classifiers general` will output predictions (using the general model) for all the pre-computed embeddings in the dir
 
 # Process classifiers argument
 classifiers_to_use = args.classifiers
@@ -40,8 +41,8 @@ models = {}
 
 if '6aa-FETA' in classifiers_to_use:
     models['6aa-FETA'] = joblib.load(f'{model_dir}/6aa_FETA_model_latest.joblib')
-if '6aa-best' in classifiers_to_use:
-    models['6aa-best'] = joblib.load(f'{model_dir}/6aa_best_model_latest.joblib')
+if '6aa' in classifiers_to_use:
+    models['6aa'] = joblib.load(f'{model_dir}/6aa_best_model_latest.joblib')
 if '10aa' in classifiers_to_use:
     models['10aa'] = joblib.load(f'{model_dir}/10aa_model_latest.joblib')
 if '15aa' in classifiers_to_use:
@@ -113,47 +114,38 @@ if args.sequence:
         np.save(args.embeddings_output, sequence_representations)
         print(f'Embeddings saved to {args.embeddings_output}')
 
-elif args.embeddingsFile:
-    print('Processing embeddings file...')
-    # process embeddingsFile
-    data = torch.load(args.embeddingsFile, weights_only=True)
-    if 'mean_representations' in data:
-        if layer in data['mean_representations']:
-            embeddings = data['mean_representations'][layer].numpy()
-            sequence_representations = embeddings[np.newaxis, :]  # ensure it's 2D array
-            # set names appropriately
-            basename = os.path.basename(args.embeddingsFile)
-            name = os.path.splitext(basename)[0]
-            names = [name]
-        else:
-            raise ValueError(f"The 'mean_representations' in {args.embeddingsFile} does not contain layer {layer}.")
-    else:
-        raise ValueError(f"File {args.embeddingsFile} does not contain 'mean_representations'. Please provide a .pt file with 'mean_representations'. You can use extract.py with the `--include mean` to get this.")
+elif args.embeddingsFiles:
+    print('Processing embeddings files...')
+    # Expand glob patterns and collect all files
+    all_files = []
+    for pattern in args.embeddingsFiles:
+        matched_files = glob.glob(pattern)
+        if not matched_files:
+            print(f"Warning: No files matched the pattern {pattern}")
+        all_files.extend(matched_files)
 
+    if not all_files:
+        raise ValueError("No embeddings files found (expecting .pt files). Please check your patterns.")
 
-elif args.embeddingsDir:
-    print('Processing embeddings directory...')
-    # process embeddingsDir
     embeddings_list = []
     names = []
-    found_pt_files = False
-    for filename in os.listdir(args.embeddingsDir):
-        if filename.endswith('.pt'):
-            found_pt_files = True
-            filepath = os.path.join(args.embeddingsDir, filename)
+    for filepath in all_files:
+        if filepath.endswith('.pt'):
             data = torch.load(filepath, weights_only=True)
             if 'mean_representations' in data:
                 if layer in data['mean_representations']:
                     embeddings = data['mean_representations'][layer].numpy()
                     embeddings_list.append(embeddings)
-                    name = os.path.splitext(filename)[0]
+                    name = os.path.splitext(os.path.basename(filepath))[0]
                     names.append(name)
                 else:
-                    raise ValueError(f"The 'mean_representations' in {filepath} does not contain layer {layer} (last layer of ESM2 3B model)")
+                    raise ValueError(f"The 'mean_representations' in {filepath} does not contain layer {layer}.")
             else:
-                raise ValueError(f"File {filepath} does not contain 'mean_representations'. Please provide .pt files with 'mean_representations'. You can use extract.py with the `--include mean` to get this.")
-    if not found_pt_files:
-        raise ValueError('No .pt files found in the specified embeddings directory.')
+                raise ValueError(f"File {filepath} does not contain 'mean_representations'. Use the --include mean option when extracting embeddings with extract.py")
+        else:
+            print(f"Warning: {filepath} is not a .pt file. Skipping.")
+    if not embeddings_list:
+        raise ValueError('No valid .pt embeddings files found.')
     sequence_representations = np.stack(embeddings_list, axis=0)
 
 # put into df
@@ -175,10 +167,13 @@ for classifier_name in classifiers_to_use:
         LR_model = loaded_data['model']
         scaler = loaded_data['scaler']
         
-        embeddings_scaled = scaler.transform(embeddings_df) # # Scale selected features
+        if classifier_name == 'general':
+            embeddings_scaled = scaler.transform(embeddings_df.values)
+        else:
+            embeddings_scaled = scaler.transform(embeddings_df)
 
         # Handle feature selection (for 6aa-FETA and 6aa-best)
-        if classifier_name in ['6aa-FETA', '6aa-best']:
+        if classifier_name in ['6aa-FETA', '6aa']:
             if 'feature_set' not in loaded_data:
                 raise ValueError(f"'feature_set' is missing in the {classifier_name} model file.")
             feature_set = loaded_data['feature_set']
@@ -207,7 +202,7 @@ output_df.to_csv(args.output, index=False)
 print('Predictions saved to', args.output)
 
 # Plotting predictions if there are multiple sequences
-if len(names) > 1:
+if len(names) > 1 and not args.no_plot:
     print("\nGenerating bar graphs for predictions...")
     for classifier in classifiers_to_use:
         if classifier in scores:
