@@ -15,6 +15,9 @@ python -c "import torch; print(torch.__version__); print('cuda', torch.cuda.is_a
 ```
 Expected check output includes `cuda True`.
 
+If this command fails, your driver/GPU/platform likely needs a different CUDA-enabled PyTorch build. Use the official selector to pick a compatible install command:
+https://pytorch.org/get-started/locally/
+
 ### CPU fallback (Mac / no NVIDIA GPU, slower but supported)
 ```bash
 conda create -n amyloid-predict python=3.9
