@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amyloid-predict"
+version = "0.1.0"
+description = "Amyloidogenicity prediction with ESM2 + logistic regression"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "amyloid-predict contributors" }
+]
+dependencies = [
+  "numpy>=1.21"
+]
+
+[project.scripts]
+amyloid-predict = "amyloid_predict.cli:main"
+amyloid-predict-per-res = "amyloid_predict.per_res_cli:main"
+
+[tool.setuptools]
+packages = ["amyloid_predict"]
