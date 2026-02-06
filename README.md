@@ -79,7 +79,6 @@ You can alter which classifiers to use for which fragments with the `--classifie
 ## Notes
 - `--toks_per_batch`: higher is faster but uses more memory.
 - `--truncation_seq_length`: sequences longer than this are truncated for ESM2 inference.
-- `--model_dir`: if relative, it is searched from both your current directory and the installed project root. You can also set `AMYLOID_PREDICT_MODEL_DIR`.
 
 ## Acknowledgments
 - ESM developers
