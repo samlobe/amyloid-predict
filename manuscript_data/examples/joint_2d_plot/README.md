@@ -47,6 +47,8 @@ python manuscript_data/examples/joint_2d_plot/plot_joint_2d.py \
   --protein sample 
 ```
 
+Default output filename for this command is `sample_joint_2d.png` in the current working directory.
+
 ### Plot with optional IDR background contours
 ```bash
 python manuscript_data/examples/joint_2d_plot/plot_joint_2d.py \

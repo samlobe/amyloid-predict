@@ -27,7 +27,7 @@ This directory contains manuscript-supporting datasets and scripts for the 2026 
 - `examples/joint_2d_plot/hist.npy`
 - `examples/joint_2d_plot/xedges.npy`
 - `examples/joint_2d_plot/yedges.npy`
-- `examples/go_fig3/plot_go_over_half_scatter.py`
+- `examples/go_analysis/plot_go_over_half_scatter.py`
 - `examples/residue_boxenplots/reproduce_residue_boxenplots.py`
 
 See Zenodo for other large raw tables.
@@ -37,7 +37,7 @@ See Zenodo for other large raw tables.
   - Per-IDR GO category table (`data/go/idr_go_categories_simple.csv`)
   - Figure-3 GO histogram inputs (`data/go/*_histograms.csv`)
   - Figure-3 GO over-threshold summaries (`data/go/*_over_half.csv`)
-  - A lightweight GO plotting helper (`examples/go_fig3/plot_go_over_half_scatter.py`)
+  - A lightweight GO plotting helper (`examples/go_analysis/plot_go_over_half_scatter.py`)
 - See Zenodo for the large residue-level score table used upstream for full GO derivations (`IDRs_amyloid_LLPS.csv`)
 
 ## Planned Zenodo Assets (Exact Filenames)

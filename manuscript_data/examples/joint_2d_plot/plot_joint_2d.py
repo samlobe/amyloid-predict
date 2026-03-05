@@ -66,7 +66,11 @@ def main() -> None:
     parser.add_argument("--protein", required=True)
     parser.add_argument("--start", type=int, required=False)
     parser.add_argument("--end", type=int, required=False)
-    parser.add_argument("--out_png", required=True)
+    parser.add_argument(
+        "--out_png",
+        required=False,
+        help="Optional output PNG path. Default: <protein>_joint_2d.png in the current working directory.",
+    )
     args = parser.parse_args()
 
     amyloid = load_per_res_average(Path(args.amyloid_csv).expanduser().resolve())
@@ -131,7 +135,8 @@ def main() -> None:
     title_range = f"{min_res}-{max_res}"
     ax.set_title(f"{args.protein}: {title_range}")
 
-    out_path = Path(args.out_png).expanduser().resolve()
+    out_name = args.out_png if args.out_png else f"{args.protein}_joint_2d.png"
+    out_path = Path(out_name).expanduser().resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"Saved: {out_path}")
