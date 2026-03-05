@@ -82,7 +82,7 @@ You can alter which classifiers to use for which fragments with the `--classifie
 
 ## Manuscript Data
 - Manuscript datasets and scripts are in [`manuscript_data/`](manuscript_data/).
-- DOI-backed Zenodo snapshot for the manuscript release will be recorded here: `https://doi.org/TBD`.
+- DOI-backed Zenodo snapshot for the manuscript release will be recorded here: `https://doi.org/10.5281/zenodo.18882460`.
 
 ## Acknowledgments
 - ESM developers
