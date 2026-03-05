@@ -80,6 +80,10 @@ You can alter which classifiers to use for which fragments with the `--classifie
 - `--toks_per_batch`: higher is faster but uses more memory.
 - `--truncation_seq_length`: sequences longer than this are truncated for ESM2 inference.
 
+## Manuscript Data
+- Manuscript datasets and scripts are in [`manuscript_data/`](manuscript_data/).
+- DOI-backed Zenodo snapshot for the manuscript release will be recorded here: `https://doi.org/TBD`.
+
 ## Acknowledgments
 - ESM developers
 - Datasets used for training: WALTZ, TANGO, and tau fragment sets
