@@ -1,5 +1,4 @@
-# Manuscript Data and Materials (2026)
-
+# Manuscript Data
 This directory contains manuscript-supporting datasets and scripts for the 2026 manuscript: "amyloid-predict and LLPS-predict: Predicting Phase Separation Propensities in the Intrinsically Disordered Proteome".
 
 ## Repository and Archive Policy
