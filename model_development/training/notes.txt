@@ -1,0 +1,19 @@
+Training data notes (amyloid-predict)
+
+This folder's training scripts read precomputed embedding tables from:
+- model_development/features/*.csv
+and labels from:
+- model_development/labels/*.csv
+
+Sequence availability in this repo:
+- WALTZall_labels.csv: includes Sequence column
+- WALTZtht_labels.csv: includes Sequence column
+- TANGO_Table2_labels.csv: includes Amino Acid Sequence column
+- tau_labels.csv: contains fragment position IDs and labels (not raw fragment sequences)
+
+If regenerating embeddings from sequences:
+1) Prepare FASTA entries matching label row identifiers/order.
+2) Use ESM extraction script from the ESM repo, e.g.:
+   https://github.com/facebookresearch/esm
+   script: scripts/extract.py
+3) Export one embedding row per sequence/fragment and save as CSV in model_development/features/.
